@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 Implementation of distance using the Generic Non-Parametric Representation approach from "Some contributions to the
 clustering of financial time series and applications to credit default swaps" by Gautier Marti

@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 Filters are used to filter events based on some kind of trigger. For example a structural break filter can be
 used to filter events where a structural break occurs. This event is then used to measure the return from the event

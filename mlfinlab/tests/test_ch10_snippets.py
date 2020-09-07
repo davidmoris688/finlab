@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 Tests the unit functions in ch10_snippets.py for calculating bet size.
 """

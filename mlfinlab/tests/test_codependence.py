@@ -1,21 +1,18 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 Test functions from codependence module: correlation distances, mutual info, variation of information.
 """
 
 import unittest
 import numpy as np
+import pandas as pd
 
 from mlfinlab.codependence.correlation import (squared_angular_distance, angular_distance, absolute_angular_distance,
-                                               distance_correlation)
+                                               distance_correlation, kullback_leibler_distance, norm_distance)
 from mlfinlab.codependence.information import (get_mutual_info, variation_of_information_score,
                                                get_optimal_number_of_bins)
 from mlfinlab.codependence.codependence_matrix import (get_dependence_matrix, get_distance_matrix)
 from mlfinlab.codependence.gnpr_distance import (spearmans_rho, gpr_distance, gnpr_distance)
-from mlfinlab.codependence.optimal_transport import optimal_transport_distance
+from mlfinlab.codependence.optimal_transport import optimal_transport_dependence
 from mlfinlab.util.generate_dataset import get_classification_data
 
 # pylint: disable=invalid-name
@@ -35,6 +32,17 @@ class TestCodependence(unittest.TestCase):
         self.y_2 = abs(self.x) + state.normal(size=1000) / 5
         self.y_3 = self.x + state.normal(size=1000) / 5
         self.X_matrix, _ = get_classification_data(6, 2, 2, 100, sigma=0)
+        # Setting sample correlation matrices
+        self.corr_A = np.array([[1, 0.70573243, 0.03085437, 0.6019651, 0.81214341],
+                                [0.70573243, 1, 0.03126594, 0.56559443, 0.88961155],
+                                [0.03085437, 0.03126594, 1, 0.01760481, 0.02842086],
+                                [0.60196510, 0.56559443, 0.01760481, 1, 0.73827921],
+                                [0.81214341, 0.88961155, 0.02842086, 0.73827921, 1]])
+        self.corr_B = np.array([[1, 0.49805826, 0.00095199, 0.36236198, 0.65957691],
+                                [0.49805826, 1, 0.00097755, 0.31989705, 0.79140871],
+                                [0.00095199, 0.00097755, 1, 0.00030992, 0.00080774],
+                                [0.36236198, 0.31989705, 0.00030992, 1, 0.54505619],
+                                [0.65957691, 0.79140871, 0.00080774, 0.54505619, 1]])
 
     def test_correlations(self):
         """
@@ -44,11 +52,24 @@ class TestCodependence(unittest.TestCase):
         sq_angular_dist = squared_angular_distance(self.x, self.y_1)
         abs_angular_dist = absolute_angular_distance(self.x, self.y_1)
         dist_corr = distance_correlation(self.x, self.y_1)
+        kullback_dist = kullback_leibler_distance(self.corr_A, self.corr_B)
+        norm_dist = norm_distance(self.corr_A, self.corr_B)
+        # Assigns pd.DataFrame as input
+        corr_A_df = pd.DataFrame(self.corr_A)
+        corr_B_df = pd.DataFrame(self.corr_B)
+        kullback_dist_df = kullback_leibler_distance(corr_A_df, corr_B_df)
+        norm_dist_df = norm_distance(corr_A_df, corr_B_df)
 
         self.assertAlmostEqual(angular_dist, 0.67, delta=1e-2)
         self.assertAlmostEqual(abs_angular_dist, 0.6703, delta=1e-2)
         self.assertAlmostEqual(sq_angular_dist, 0.7, delta=1e-2)
         self.assertAlmostEqual(dist_corr, 0.529, delta=1e-2)
+        self.assertAlmostEqual(kullback_dist, 0.250807852409, delta=1e-2)
+        self.assertAlmostEqual(norm_dist, 0.58255075616, delta=1e-2)
+
+        # Checking if return is consistent when input type is pd.DataFrame
+        self.assertAlmostEqual(kullback_dist_df, kullback_dist, delta=1e-2)
+        self.assertAlmostEqual(norm_dist_df, norm_dist, delta=1e-2)
 
         dist_corr_y_2 = distance_correlation(self.x, self.y_2)
         self.assertAlmostEqual(dist_corr_y_2, 0.5216, delta=1e-2)
@@ -200,62 +221,41 @@ class TestCodependence(unittest.TestCase):
         self.assertAlmostEqual(gnpr1_xy1, 0.0032625, delta=1e-7)
         self.assertAlmostEqual(gnpr1_xy2, 0.0023459, delta=1e-7)
 
-    def test_optimal_transport_distance(self):
+    def test_optimal_transport_dependence(self):
         """
-        Test optimal_transport_distance function.
+        Test optimal_transport_dependence function.
         """
 
-        ot_distance_xy1_comon = optimal_transport_distance(self.x, self.y_1, 'comonotonicity')
-        ot_distance_xy2_comon = optimal_transport_distance(self.x, self.y_2, 'comonotonicity')
-        ot_distance_xy3_comon = optimal_transport_distance(self.x, self.y_3, 'comonotonicity')
+        # Lists to store results for each target copula dependence
+        ot_comon = []
+        ot_counter = []
+        ot_gauss = []
+        ot_posneg = []
+        ot_diffvar = []
+        ot_smallvar = []
+        ot_v_shape = []
 
-        ot_distance_xy1_counter = optimal_transport_distance(self.x, self.y_1, 'countermonotonicity')
-        ot_distance_xy2_counter = optimal_transport_distance(self.x, self.y_2, 'countermonotonicity')
-        ot_distance_xy3_counter = optimal_transport_distance(self.x, self.y_3, 'countermonotonicity')
+        # Calculating OT dependence for all data combinations
+        for y_data in [self.y_1, self.y_2, self.y_3]:
 
-        ot_distance_xy1_gauss = optimal_transport_distance(self.x, self.y_1, 'gaussian', gaussian_corr=0.6)
-        ot_distance_xy2_gauss = optimal_transport_distance(self.x, self.y_2, 'gaussian', gaussian_corr=0.6)
-        ot_distance_xy3_gauss = optimal_transport_distance(self.x, self.y_3, 'gaussian', gaussian_corr=0.6)
+            ot_comon.append(optimal_transport_dependence(self.x, y_data, 'comonotonicity'))
+            ot_counter.append(optimal_transport_dependence(self.x, y_data, 'countermonotonicity'))
+            ot_gauss.append(optimal_transport_dependence(self.x, y_data, 'gaussian', gaussian_corr=0.6))
+            ot_posneg.append(optimal_transport_dependence(self.x, y_data, 'positive_negative'))
+            ot_diffvar.append(optimal_transport_dependence(self.x, y_data, 'different_variations'))
+            ot_smallvar.append(optimal_transport_dependence(self.x, y_data, 'small_variations',
+                                                            gaussian_corr=0.9, var_threshold=0.5))
+            ot_v_shape.append(optimal_transport_dependence(self.x, self.y_1, 'v-shape'))
 
-        ot_distance_xy1_posneg = optimal_transport_distance(self.x, self.y_1, 'positive_negative')
-        ot_distance_xy2_posneg = optimal_transport_distance(self.x, self.y_2, 'positive_negative')
-        ot_distance_xy3_posneg = optimal_transport_distance(self.x, self.y_3, 'positive_negative')
-
-        ot_distance_xy1_diffvar = optimal_transport_distance(self.x, self.y_1, 'different_variations')
-        ot_distance_xy2_diffvar = optimal_transport_distance(self.x, self.y_2, 'different_variations')
-        ot_distance_xy3_diffvar = optimal_transport_distance(self.x, self.y_3, 'different_variations')
-
-        ot_distance_xy1_smallvar = optimal_transport_distance(self.x, self.y_1, 'small_variations',
-                                                              gaussian_corr=0.9, var_threshold=0.5)
-        ot_distance_xy2_smallvar = optimal_transport_distance(self.x, self.y_2, 'small_variations',
-                                                              gaussian_corr=0.9, var_threshold=0.5)
-        ot_distance_xy3_smallvar = optimal_transport_distance(self.x, self.y_3, 'small_variations',
-                                                              gaussian_corr=0.9, var_threshold=0.5)
-
-        self.assertAlmostEqual(ot_distance_xy1_comon, 0.18828889, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy2_comon, 0.18171391, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy3_comon, 0.97448323, delta=1e-7)
-
-        self.assertAlmostEqual(ot_distance_xy1_counter, 0.1972548, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy2_counter, 0.1840561, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy3_counter, 0.2206215, delta=1e-7)
-
-        self.assertAlmostEqual(ot_distance_xy1_gauss, 0.4025307, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy2_gauss, 0.4087338, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy3_gauss, 0.7716355, delta=1e-7)
-
-        self.assertAlmostEqual(ot_distance_xy1_posneg, 0.4459249, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy2_posneg, 0.4195972, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy3_posneg, 0.4336539, delta=1e-7)
-
-        self.assertAlmostEqual(ot_distance_xy1_diffvar, 0.0611081, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy2_diffvar, 0.0619758, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy3_diffvar, 0.1478687, delta=1e-7)
-
-        self.assertAlmostEqual(ot_distance_xy1_smallvar, 0.1955118, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy2_smallvar, 0.1920811, delta=1e-7)
-        self.assertAlmostEqual(ot_distance_xy3_smallvar, 0.4100245, delta=1e-7)
+        # Testing if the outputs are as expected
+        np.testing.assert_almost_equal(ot_comon, [0.18828889, 0.20655711, 0.97408119], 7)
+        np.testing.assert_almost_equal(ot_counter, [0.18481200, 0.18786002, 0.20083882], 7)
+        np.testing.assert_almost_equal(ot_gauss, [0.40585385, 0.39987253, 0.75451484], 7)
+        np.testing.assert_almost_equal(ot_posneg, [0.44244261, 0.41771668, 0.41154233], 7)
+        np.testing.assert_almost_equal(ot_diffvar, [0.06142715, 0.05673866, 0.13695776], 7)
+        np.testing.assert_almost_equal(ot_smallvar, [0.19581125, 0.19050593, 0.42343376], 7)
+        np.testing.assert_almost_equal(ot_v_shape, [0.90642196, 0.90251922, 0.89800927], 7)
 
         # Test for error if unsupported target dependence is given
         with self.assertRaises(Exception):
-            optimal_transport_distance(self.x, self.y_1, 'nonlinearity')
+            optimal_transport_dependence(self.x, self.y_1, 'nonlinearity')

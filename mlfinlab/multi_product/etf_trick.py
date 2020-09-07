@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 This module contains class for ETF trick generation and futures roll function, described in Marcos Lopez de Prado's
 book 'Advances in Financial Machine Learning' ETF trick class can generate ETF trick series either from .csv files

@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 This module contains the code snippets found in Chapter 10 of "Advances in Financial Machine Learning" by
 Marcos López de Prado. The code has been amended for readability, to conform to PEP8 rules, to keep the snippets as

@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 This module creates clustered subsets of features described in the paper Clustered Feature Importance (Presentation
 Slides) by Dr. Marcos Lopez de Prado. https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3517595 and is also explained

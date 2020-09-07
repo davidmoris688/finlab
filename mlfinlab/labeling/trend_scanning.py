@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 Implementation of Trend-Scanning labels described in `Advances in Financial Machine Learning: Lecture 3/10
 <https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2708678>`_

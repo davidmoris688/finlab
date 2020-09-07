@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 # pylint: disable=protected-access
 """
 Tests the Nested Clustered Optimization (NCO) algorithm.

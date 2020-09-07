@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 Fractional differentiation is a technique to make a time series stationary but also
 retain as much memory as possible.  This is done by differencing by a positive real

@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 This module contains an implementation of an exponentially weighted moving average based on sample size.
 The inspiration and context for this code was from a blog post by writen by Maksim Ivanov:

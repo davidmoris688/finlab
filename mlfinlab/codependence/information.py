@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 Implementations of mutual information (I) and variation of information (VI) codependence measures from Cornell
 lecture slides: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3512994&download=yes

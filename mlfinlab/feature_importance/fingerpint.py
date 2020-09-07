@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 Implementation of an algorithm described in Yimou Li, David Turkington, Alireza Yazdani
 'Beyond the Black Box: An Intuitive Approach to Investment Prediction with Machine Learning'

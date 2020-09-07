@@ -1,12 +1,7 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
-"""
+'''
 This module generates  synthetic classification dataset of INFORMED, REDUNDANT, and NOISE explanatory
 variables based on the book Machine Learning for Asset Manager (code snippet 6.1)
-"""
-
+'''
 import numpy as np
 import pandas as pd
 from sklearn.datasets import make_classification

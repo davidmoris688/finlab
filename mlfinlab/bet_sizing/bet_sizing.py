@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 This module contains functionality for determining bet sizes for investments based on machine learning predictions.
 These implementations are based on bet sizing approaches described in Chapter 10.

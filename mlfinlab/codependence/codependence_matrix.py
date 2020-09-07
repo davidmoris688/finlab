@@ -1,7 +1,3 @@
-# Copyright 2019, Hudson and Thames Quantitative Research
-# All rights reserved
-# Read more: https://github.com/hudson-and-thames/mlfinlab/blob/master/LICENSE.txt
-
 """
 This implementation lets user generate dependence and distance matrix based on the various methods of Information
 Codependence  described in Cornell lecture notes on Codependence:
