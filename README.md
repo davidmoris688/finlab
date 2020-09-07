@@ -1,6 +1,6 @@
 <div align="center">
    <a href="https://hudsonthames.org/">
-   <img src="https://raw.githubusercontent.com/hudson-and-thames/mlfinlab/master/docs/source/logo/Hudson%20%26%20Thames_verticalblack.png" height="300"><br>
+   <img src="https://raw.githubusercontent.com/hudson-and-thames/mlfinlab/master/.github/logo/hudson_and_thames_logo.png" height="300"><br>
 </div>
 
 
@@ -13,11 +13,14 @@
 
 ![pylint Score](https://mperlet.github.io/pybadge/badges/10.svg)
 [![Documentation Status](https://readthedocs.org/projects/mlfinlab/badge/?version=latest)](https://mlfinlab.readthedocs.io/en/latest/?badge=latest)
+[![Downloads](https://img.shields.io/pypi/dm/mlfinlab.svg)]((https://pypi.org/project/mlfinlab/))
 
 MlFinlab is a python package which helps portfolio managers and traders who want to leverage the power of machine learning by providing reproducible, interpretable, and easy to use tools. 
 Adding MlFinLab to your companies pipeline is like adding a department of PhD researchers to your team.
 
 > **pip install mlfinlab**
+
+For a detailed installation guide for MacOS, Linux, and Windows please visit [this link](https://mlfinlab.readthedocs.io/en/latest/getting_started/installation.html).
 
 We source all of our implementations from the most elite and peer-reviewed journals. Including publications from: 
 1. [The Journal of Financial Data Science](https://jfds.pm-research.com/)
@@ -57,7 +60,7 @@ is doing to financial machine learning what Tensorflow and PyTorch are doing to 
 > MlFinLab provides access to the latest cutting edges methods. MlFinLab is thus essential for quants who want to be 
 >ahead of the technology rather than being replaced by it."
 
-[Dr. Thomas Raffinot](https://www.linkedin.com/in/thomas-raffinot-b75734b/), Financial Data Scientist at ENGIE Global Markets
+[Dr. Thomas Raffinot](https://www.linkedin.com/in/thomas-raffinot-b75734b/), Lead Data Scientist at AXA Investment Managers
 
 ## Unlocking the Commons
 We are currently running a sponsorship model of “Unlocking the Commmons”. Our code base, online documentation, 
