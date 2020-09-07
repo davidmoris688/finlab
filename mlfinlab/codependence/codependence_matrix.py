@@ -10,7 +10,7 @@ import pandas as pd
 from mlfinlab.codependence.information import variation_of_information_score, get_mutual_info
 from mlfinlab.codependence.correlation import distance_correlation
 from mlfinlab.codependence.gnpr_distance import spearmans_rho, gpr_distance, gnpr_distance
-from mlfinlab.codependence.optimal_transport import optimal_transport_distance
+from mlfinlab.codependence.optimal_transport import optimal_transport_dependence
 
 
 # pylint: disable=invalid-name
@@ -66,7 +66,7 @@ def get_dependence_matrix(df: pd.DataFrame, dependence_method: str, theta: float
     elif dependence_method == 'gnpr_distance':
         dep_function = lambda x, y: gnpr_distance(x, y, theta=theta, bandwidth=bandwidth)
     elif dependence_method == 'optimal_transport':
-        dep_function = lambda x, y: optimal_transport_distance(x, y, target_dependence, gaussian_corr, var_threshold)
+        dep_function = lambda x, y: optimal_transport_dependence(x, y, target_dependence, gaussian_corr, var_threshold)
     else:
         raise ValueError(f"{dependence_method} is not a valid method. Please use one of the supported methods \
                             listed in the docsting.")
