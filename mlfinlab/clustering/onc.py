@@ -103,7 +103,7 @@ def _check_improve_clusters(new_tstat_mean: float, mean_redo_tstat: float, old_c
     :return: (tuple) Cluster
     """
 
-    if new_tstat_mean > mean_redo_tstat:
+    if new_tstat_mean <= mean_redo_tstat:
         return old_cluster
     return new_cluster
 

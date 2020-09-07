@@ -4,6 +4,7 @@ Test Optimal Number of Clusters algorithm
 
 import unittest
 import pandas as pd
+import numpy as np
 from sklearn.datasets import load_breast_cancer
 
 from mlfinlab.clustering import get_onc_clusters
@@ -20,6 +21,7 @@ class TestOptimalNumberOfClusters(unittest.TestCase):
         Set the file path for the sample dollar bars data.
         """
         self.data, _ = load_breast_cancer(return_X_y=True)
+        np.random.seed(0)
 
     @staticmethod
     def _check_if_in_cluster(array, cluster_dict):
@@ -48,4 +50,4 @@ class TestOptimalNumberOfClusters(unittest.TestCase):
         """
         Function to test redo condition helper function
         """
-        self.assertEqual((4, 5, 6), _check_improve_clusters(2, 3, (1, 2, 3), (4, 5, 6)))
+        self.assertEqual((1, 2, 3), _check_improve_clusters(2, 3, (1, 2, 3), (4, 5, 6)))

@@ -1,9 +1,12 @@
 # pylint: disable=missing-module-docstring
+import warnings
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import KernelDensity
 from sklearn.covariance import MinCovDet, EmpiricalCovariance, ShrunkCovariance, LedoitWolf, OAS
 from scipy.optimize import minimize
+from scipy.cluster.hierarchy import average, complete, single, dendrogram
+from matplotlib import pyplot as plt
 from mlfinlab.portfolio_optimization.returns_estimators import ReturnsEstimators
 
 
@@ -262,6 +265,85 @@ class RiskEstimators:
 
         return cov_matrix
 
+    @staticmethod
+    def filter_corr_hierarchical(cor_matrix, method='complete', draw_plot=False):
+        """
+        Creates a filtered correlation matrix using hierarchical clustering methods from an empirical
+        correlation matrix, given that all values are non-negative [0 ~ 1]
+
+        This function allows for three types of hierarchical clustering - complete, single, and average
+        linkage clusters. Link to hierarchical clustering methods documentation:
+        `<https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.linkage.html>`_
+
+        It works as follows:
+
+        First, the method creates a hierarchical clustering tree using scipy's hierarchical clustering methods
+        from the empirical 2-D correlation matrix.
+
+        Second, it extracts and stores each cluster's filtered value (alpha) and assigns it to it's corresponding leaf.
+
+        Finally, we create a new filtered matrix by assigning each of the correlations to their corresponding
+        parent node's alpha value.
+
+        :param cor_matrix: (np.array) Numpy array of an empirical correlation matrix.
+        :param method: (str) Hierarchical clustering method to use. (``complete`` by default, ``single``, ``average``)
+        :param draw_plot: (bool) Plots the hierarchical cluster tree. (False by default)
+        :return: (np.array) The filtered correlation matrix.
+        """
+
+        # Check if all matrix elements are positive
+        if np.any(cor_matrix < 0):
+            warnings.warn('Not all elements in matrix are positive... Returning unfiltered matrix.', UserWarning)
+            return cor_matrix
+
+        # Check if matrix is 2-D
+        if len(cor_matrix.shape) == 2:
+            cor_x, cor_y = cor_matrix.shape
+        else:
+            warnings.warn('Invalid matrix dimensions, input must be 2-D array... Returning unfiltered matrix.', UserWarning)
+            return cor_matrix
+
+        # Check if matrix dimensions and diagonal values are valid.
+        if cor_x == cor_y and np.allclose(np.diag(cor_matrix), 1): # using np.allclose as diag values might be 0.99999
+            # Creating new coorelation condensed matrix for the upper triangle and dismissing the diagnol.
+            new_cor = cor_matrix[np.triu_indices(cor_matrix.shape[0], k=1)]
+        else:
+            warnings.warn('Invalid matrix, input must be a correlation matrix of size (m x m)... Returning unfiltered matrix.', UserWarning)
+            return cor_matrix
+
+        # Compute the hierarchical clustering tree
+        if method == 'complete':
+            z_cluster = complete(new_cor)
+        elif method == 'single':
+            z_cluster = single(new_cor)
+        elif method == 'average':
+            z_cluster = average(new_cor)
+        else:
+            warnings.warn('Invalid method selected, please check docstring... Returning unfiltered matrix.', UserWarning)
+            return cor_matrix
+
+        # Plot the hierarchical cluster tree
+        if draw_plot:
+            fig = plt.figure(figsize=(10, 6))
+            axis = fig.add_subplot(111)
+            dendrogram(z_cluster, ax=axis)
+            plt.show()
+
+        # Creates a pd.DataFrame that will act as a dictionary where the index is the leaf node id, and the values are
+        # thier corresponding cluster's alpha value
+        alpha_values = z_cluster[:, 2]
+        alphas = z_cluster[:, 0]
+        df_alphas = pd.DataFrame(alpha_values, index=alphas)
+        df_alphas.loc[z_cluster[0][1]] = alpha_values[0]
+
+        # Creates the filtered correlation matrix
+        alphas_sorterd = df_alphas.sort_index()
+        alphas_x = np.tile(alphas_sorterd.values, (1, len(alphas_sorterd.values)))
+        filt_corr = np.maximum(alphas_x, alphas_x.T)
+        np.fill_diagonal(filt_corr, 1)
+
+        return filt_corr
+
     def denoise_covariance(self, cov, tn_relation, denoise_method='const_resid_eigen', detone=False,
                            market_component=1, kde_bwidth=0.01, alpha=0):
         """
@@ -269,7 +351,9 @@ class RiskEstimators:
 
         Two denoising methods are supported:
         1. Constant Residual Eigenvalue Method (``const_resid_eigen``)
-        2. Targeted Shrinkage Method (``target_shrink``)
+        2. Spectral Method (``spectral``)
+        3. Targeted Shrinkage Method (``target_shrink``)
+
 
         The Constant Residual Eigenvalue Method works as follows:
 
@@ -289,6 +373,10 @@ class RiskEstimators:
         the maximum theoretical eigenvalue are set to their average value. This is how the eigenvalues
         associated with noise are shrinked. The de-noised covariance matrix is then calculated back
         from new eigenvalues and eigenvectors.
+
+        The Spectral Method works just like the Constant Residual Eigenvalue Method, but instead of replacing
+        eigenvalues lower than the maximum theoretical eigenvalue to their average value, they are replaced with
+        zero instead.
 
         The Targeted Shrinkage Method works as follows:
 
@@ -319,10 +407,10 @@ class RiskEstimators:
         :param alpha: (float) In range (0 to 1) - shrinkage of the noise correlation matrix to use in the
                               Targeted Shrinkage Method. (0 by default)
         :return: (np.array) De-noised covariance matrix or correlation matrix.
-
         """
 
         # Correlation matrix computation (if correlation matrix given, nothing changes)
+
         corr = self.cov_to_corr(cov)
 
         # Calculating eigenvalues and eigenvectors
@@ -338,6 +426,9 @@ class RiskEstimators:
         if denoise_method == 'target_shrink':
             # Based on the threshold, de-noising the correlation matrix
             corr = self._denoised_corr_targ_shrink(eigenval, eigenvec, num_facts, alpha)
+        elif denoise_method == 'spectral':
+            # Based on the threshold, de-noising the correlation matrix
+            corr = self._denoised_corr_spectral(eigenval, eigenvec, num_facts)
         else: # Default const_resid_eigen method
             # Based on the threshold, de-noising the correlation matrix
             corr = self._denoised_corr(eigenval, eigenvec, num_facts)
@@ -571,6 +662,41 @@ class RiskEstimators:
         eigenvalues = np.diag(eigenval_vec)
 
         # De-noised correlation matrix
+        corr = np.dot(eigenvectors, eigenvalues).dot(eigenvectors.T)
+
+        # Rescaling the correlation matrix to have 1s on the main diagonal
+        corr = self.cov_to_corr(corr)
+
+        return corr
+
+    def _denoised_corr_spectral(self, eigenvalues, eigenvectors, num_facts):
+        """
+        De-noises the correlation matrix using the Spectral method.
+
+        The input is the eigenvalues and the eigenvectors of the correlation matrix and the number
+        of the first eigenvalue that is below the maximum theoretical eigenvalue.
+
+        De-noising is done by shrinking the eigenvalues associated with noise (the eigenvalues lower than
+        the maximum theoretical eigenvalue are set to zero, preserving the trace of the
+        correlation matrix).
+        The result is the de-noised correlation matrix.
+
+        :param eigenvalues: (np.array) Matrix with eigenvalues on the main diagonal.
+        :param eigenvectors: (float) Eigenvectors array.
+        :param num_facts: (float) Threshold for eigenvalues to be fixed.
+        :return: (np.array) De-noised correlation matrix.
+        """
+
+        # Vector of eigenvalues from the main diagonal of a matrix
+        eigenval_vec = np.diag(eigenvalues).copy()
+
+        # Replacing eigenvalues after num_facts to zero
+        eigenval_vec[num_facts:] = 0
+
+        # Back to eigenvalues on main diagonal of a matrix
+        eigenvalues = np.diag(eigenval_vec)
+
+         # De-noised correlation matrix
         corr = np.dot(eigenvectors, eigenvalues).dot(eigenvectors.T)
 
         # Rescaling the correlation matrix to have 1s on the main diagonal

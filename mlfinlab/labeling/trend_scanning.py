@@ -9,8 +9,8 @@ import numpy as np
 from mlfinlab.structural_breaks.sadf import get_betas
 
 
-def trend_scanning_labels(price_series: pd.Series, t_events: list = None, look_forward_window: int = 20,
-                          min_sample_length: int = 5, step: int = 1) -> pd.DataFrame:
+def trend_scanning_labels(price_series: pd.Series, t_events: list = None, observation_window: int = 20,
+                          look_forward: bool = True, min_sample_length: int = 5, step: int = 1) -> pd.DataFrame:
     """
     `Trend scanning <https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3257419>`_ is both a classification and
     regression labeling technique.
@@ -27,15 +27,18 @@ def trend_scanning_labels(price_series: pd.Series, t_events: list = None, look_f
     The output of this algorithm is a DataFrame with t1 (time stamp for the farthest observation), t-value, returns for
     the trend, and bin.
 
+    This function allows using both forward-looking and backward-looking window (use the look_forward parameter).
+
     :param price_series: (pd.Series) Close prices used to label the data set
     :param t_events: (list) Filtered events, array of pd.Timestamps
-    :param look_forward_window: (int) Maximum look forward window used to get the trend value
+    :param observation_window: (int) Maximum look forward window used to get the trend value
+    :param look_forward: (bool) True if using a forward-looking window, False if using a backward-looking one
     :param min_sample_length: (int) Minimum sample length used to fit regression
     :param step: (int) Optimal t-value index is searched every 'step' indices
     :return: (pd.DataFrame) Consists of t1, t-value, ret, bin (label information). t1 - label endtime, tvalue,
         ret - price change %, bin - label value based on price change sign
     """
-    # pylint: disable=invalid-name
+    # pylint: disable=invalid-name, too-many-locals
 
     if t_events is None:
         t_events = price_series.index
@@ -43,9 +46,13 @@ def trend_scanning_labels(price_series: pd.Series, t_events: list = None, look_f
     t1_array = []  # Array of label end times
     t_values_array = []  # Array of trend t-values
 
-    for index in t_events:
-        subset = price_series.loc[index:].iloc[:look_forward_window]  # Take t:t+L window
-        if subset.shape[0] >= look_forward_window:
+    for obs_id, index in enumerate(t_events):
+        # Change of subset depending on looking forward or backward
+        if look_forward:
+            subset = price_series.loc[index:].iloc[:observation_window]  # Take t:t+L window
+        else:
+            subset = price_series.loc[:index].iloc[max(0, obs_id-observation_window):]  # Take t-L:t window
+        if subset.shape[0] >= observation_window:
             # Loop over possible look-ahead windows to get the one which yields maximum t values for b_1 regression coef
             max_abs_t_value = -np.inf  # Maximum abs t-value of b_1 coefficient among l values
             max_t_value_index = None  # Index with maximum t-value
@@ -53,7 +60,11 @@ def trend_scanning_labels(price_series: pd.Series, t_events: list = None, look_f
 
             # Get optimal label end time value based on regression t-statistics
             for forward_window in np.arange(min_sample_length, subset.shape[0], step):
-                y_subset = subset.iloc[:forward_window].values.reshape(-1, 1)  # y{t}:y_{t+l}
+                # Change of y_subset depending on looking forward or backward
+                if look_forward:
+                    y_subset = subset.iloc[:forward_window].values.reshape(-1, 1)  # y{t}:y_{t+l}
+                else:
+                    y_subset = subset.iloc[-forward_window:].values.reshape(-1, 1)  # y{t-l}:y_{t}
 
                 # Array of [1, 0], [1, 1], [1, 2], ... [1, l] # b_0, b_1 coefficients
                 X_subset = np.ones((y_subset.shape[0], 2))

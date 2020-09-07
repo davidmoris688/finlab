@@ -218,6 +218,33 @@ class TestRiskEstimators(unittest.TestCase):
         np.testing.assert_almost_equal(corr_matrix, expected_corr, decimal=4)
 
     @staticmethod
+    def test_denoised_corr_spectral():
+        """
+        Test the shrinkage the eigenvalues associated with noise.
+        """
+
+        risk_estimators = RiskEstimators()
+
+        # Eigenvalues and eigenvectors to use
+        eigenvalues = np.array([[1.3562, 0, 0],
+                                [0, 0.9438, 0],
+                                [0, 0, 0.7]])
+        eigenvectors = np.array([[-3.69048184e-01, -9.29410263e-01, 1.10397126e-16],
+                                 [-6.57192300e-01, 2.60956474e-01, 7.07106781e-01],
+                                 [6.57192300e-01, -2.60956474e-01, 7.07106781e-01]])
+
+        # Expected correlation matrix
+        expected_corr = np.array([[1, 1, -1],
+                                  [1, 1, -1],
+                                  [-1, -1, 1]])
+
+        # Finding the de-noised correlation matrix
+        corr_matrix = risk_estimators._denoised_corr_spectral(eigenvalues, eigenvectors, 1)
+
+        # Testing if the de-noised correlation matrix is right
+        np.testing.assert_almost_equal(corr_matrix, expected_corr, decimal=4)
+
+    @staticmethod
     def test_denoised_corr_targ_shrink():
         """
         Test the second method of shrinkage of the eigenvalues associated with noise.
@@ -269,6 +296,89 @@ class TestRiskEstimators(unittest.TestCase):
         np.testing.assert_almost_equal(corr_matrix, expected_corr, decimal=4)
 
     @staticmethod
+    def test_filter_corr_hierarchical():
+        """
+        Test the filtering of the emperical correlation matrix.
+        """
+
+        risk_estimators = RiskEstimators()
+
+        # Correlation matrix to test
+        corr = np.array([[1, 0.70573243, 0.03085437, 0.6019651, 0.81214341],
+                         [0.70573243, 1, 0.03126594, 0.56559443, 0.88961155],
+                         [0.03085437, 0.03126594, 1, 0.01760481, 0.02842086],
+                         [0.60196510, 0.56559443, 0.01760481, 1, 0.73827921],
+                         [0.81214341, 0.88961155, 0.02842086, 0.73827921, 1]])
+
+        expected_corr_avg = np.array([[1, 0.44618396, 0.44618396, 0.44618396, 0.61711376],
+                                      [0.44618396, 1, 0.29843018, 0.29843018, 0.61711376],
+                                      [0.44618396, 0.29843018, 1, 0.01760481, 0.61711376],
+                                      [0.44618396, 0.29843018, 0.01760481, 1, 0.61711376],
+                                      [0.61711376, 0.61711376, 0.61711376, 0.61711376, 1]])
+
+        expected_corr_single = np.array([[1, 0.03126594, 0.03085437, 0.03085437, 0.03085437],
+                                         [0.03126594, 1, 0.03126594, 0.03126594, 0.03126594],
+                                         [0.03085437, 0.03126594, 1, 0.01760481, 0.02842086],
+                                         [0.03085437, 0.03126594, 0.01760481, 1, 0.02842086],
+                                         [0.03085437, 0.03126594, 0.02842086, 0.02842086, 1]])
+
+        expected_corr_complete = np.array([[1, 0.70573243, 0.70573243, 0.70573243, 0.88961155],
+                                           [0.70573243, 1, 0.56559443, 0.56559443, 0.88961155],
+                                           [0.70573243, 0.56559443, 1, 0.01760481, 0.88961155],
+                                           [0.70573243, 0.56559443, 0.01760481, 1, 0.88961155],
+                                           [0.88961155, 0.88961155, 0.88961155, 0.88961155, 1]])
+
+        methods_list = ['complete', 'single', 'average']
+        # Compute all methods with given correlation matrix
+        corr_complete, corr_single, corr_average = [risk_estimators.filter_corr_hierarchical(corr, methods) for methods in methods_list]
+
+        # Test plot
+        risk_estimators.filter_corr_hierarchical(corr, draw_plot=True)
+
+        # Testing is filtered matrices are consistent with expected values.
+        np.testing.assert_almost_equal(corr_complete, expected_corr_complete, decimal=4)
+        np.testing.assert_almost_equal(corr_single, expected_corr_single, decimal=4)
+        np.testing.assert_almost_equal(corr_average, expected_corr_avg, decimal=4)
+
+    def test_filter_corr_hierarchical_warnings(self):
+        """
+        Test warnings while filtering of the emperical correlation matrix.
+        """
+
+        risk_estimators = RiskEstimators()
+
+        # Testing input matrix with invalid inputs.
+        corr = np.array([[1, 0.70573243], [0.70573243, 1]])
+        bad_dimension = np.array([1, 0])
+        bad_size = np.array([[1, 0, 1], [0, 1, 1]])
+        non_positive = np.array([[1, -1], [0, 1]])
+        non_sym = np.array([[0, 0], [0, 0]])
+
+        # Lists to test the expected outputs
+        bad_inputs = [bad_dimension, bad_size, non_positive, non_sym, corr]
+        result = []
+
+        # Testing for warnings
+        with self.assertWarns(UserWarning):  # Warning for bad dimension
+            result.append(risk_estimators.filter_corr_hierarchical(bad_dimension))
+
+        with self.assertWarns(UserWarning):  # Warning for bad size
+            result.append(risk_estimators.filter_corr_hierarchical(bad_size))
+
+        with self.assertWarns(UserWarning):  # Warning for non-positive matrix
+            result.append(risk_estimators.filter_corr_hierarchical(non_positive))
+
+        with self.assertWarns(UserWarning):  # Warning for non-symmetrical matrix
+            result.append(risk_estimators.filter_corr_hierarchical(non_sym))
+
+        with self.assertWarns(UserWarning):  # Warning for invalid method parameter
+            result.append(risk_estimators.filter_corr_hierarchical(corr, method='bad'))
+
+        # Testing to see if failed return fetches the unfiltered correlation array
+        for idx, res in enumerate(result):
+            np.testing.assert_almost_equal(res, bad_inputs[idx], decimal=4)
+
+    @staticmethod
     def test_denoise_covariance():
         """
         Test the shrinkage the eigenvalues associated with noise.
@@ -280,11 +390,13 @@ class TestRiskEstimators(unittest.TestCase):
         cov_matrix = np.array([[0.01, 0.002, -0.001],
                                [0.002, 0.04, -0.006],
                                [-0.001, -0.006, 0.01]])
+
         tn_relation = 50
         kde_bwidth = 0.25
         alpha = 0.2
         denoise_method = 'const_resid_eigen'
         denoise_method_alt = 'target_shrink'
+        denoise_method_alt_2 = 'spectral'
         detone = False
         detone_alt = True
         market_component = 1
@@ -298,17 +410,25 @@ class TestRiskEstimators(unittest.TestCase):
                                      [0.0057, 0.04, -0.0106],
                                      [-0.0028, -0.0106, 0.01]])
 
+        expected_cov_alt_2 = np.array([[0.01, 0.02, -0.01],
+                                       [0.02, 0.04, -0.02],
+                                       [-0.01, -0.02, 0.01]])
+
         expected_cov_detoned = np.array([[0.01, -0.0094, 0.0047],
                                          [-0.0094, 0.04, 0.0111],
                                          [0.0047, 0.0111, 0.01]])
 
         # Finding the de-noised covariance matrix
-        cov_matrix_denoised = risk_estimators.denoise_covariance(cov_matrix, tn_relation, denoise_method, detone,
-                                                                 market_component, kde_bwidth)
+        cov_matrix_denoised = risk_estimators.denoise_covariance(cov_matrix, tn_relation, denoise_method,
+                                                                 detone, market_component, kde_bwidth)
 
         # Using the alternative de-noising method
         cov_matrix_denoised_alt = risk_estimators.denoise_covariance(cov_matrix, tn_relation, denoise_method_alt,
                                                                      detone, market_component, kde_bwidth, alpha)
+
+        # Using the second alternative of the de-noising method
+        cov_matrix_denoised_alt_2 = risk_estimators.denoise_covariance(cov_matrix, tn_relation, denoise_method_alt_2,
+                                                                       detone, market_component, kde_bwidth)
 
         # Finding the de-toned covariance matrix
         cov_matrix_detoned = risk_estimators.denoise_covariance(cov_matrix, tn_relation, denoise_method, detone_alt,
@@ -320,8 +440,12 @@ class TestRiskEstimators(unittest.TestCase):
         # Testing if the de-noised covariance matrix is right
         np.testing.assert_almost_equal(cov_matrix_denoised_alt, expected_cov_alt, decimal=4)
 
+        # Testing if the de-noised covariance matrix is right
+        np.testing.assert_almost_equal(cov_matrix_denoised_alt_2, expected_cov_alt_2, decimal=4)
+
         # Testing if the de-toned covariance matrix is right
         np.testing.assert_almost_equal(cov_matrix_detoned, expected_cov_detoned, decimal=4)
+
 
     def test_minimum_covariance_determinant(self):
         """
