@@ -47,6 +47,34 @@ class Graph(ABC):
         """
         return self.graph
 
+    def get_difference(self, input_graph_two):
+        """
+        Given two Graph with the same nodes, return a set of differences in edge connections.
+
+        :param input_graph_two: (Graph) A graph to compare self.graph against.
+        :return: (List) A list of unique tuples showing different edge connections.
+        """
+        graph_one = self.graph
+        graph_two = input_graph_two.get_graph()
+
+        # Create empty graph
+        empty_graph = nx.create_empty_copy(graph_one)
+        if set(graph_one) != set(graph_two):
+            msg = "Graph one does not have the same nodes as graph two."
+            raise ValueError(msg)
+
+        # Create frozen set to make a unique set of edges
+        r_edges = {frozenset(x) for x in graph_one.edges()}
+        s_edges = {frozenset(x) for x in graph_two.edges()}
+
+        # List of differences
+        diff_edges = r_edges.symmetric_difference(s_edges)
+
+        # Add different edges to empty graph
+        empty_graph.add_edges_from(diff_edges)
+
+        return empty_graph.edges()
+
     def get_pos(self):
         """
         Returns the dictionary of the nodes coordinates.
@@ -100,39 +128,3 @@ class Graph(ABC):
         :return: (Dict) Dictionary of industry name to list of node indexes.
         """
         return self.node_groups
-
-
-class MST(Graph):
-    """
-    MST is a subclass of Graph which creates a MST Graph object.
-    """
-
-    def __init__(self, matrix, matrix_type, mst_algorithm='kruskal'):
-        """
-        Creates a MST Graph object and stores the MST inside graph attribute.
-
-        :param matrix: (pd.Dataframe) Input matrices such as a distance or correlation matrix.
-        :param matrix_type: (str) Name of the matrix type (e.g. "distance" or "correlation").
-        :param mst_algorithm: (str) Valid MST algorithm types include 'kruskal', 'prim', or 'boruvka'.
-            By default, MST algorithm uses Kruskal's.
-        """
-        super().__init__(matrix_type)
-        self.graph = self.create_mst(matrix, mst_algorithm)
-        self.pos = nx.spring_layout(self.graph)
-
-    @staticmethod
-    def create_mst(matrix, algorithm='kruskal'):
-        """
-        This method converts the input matrix into a MST graph.
-
-        :param matrix: (pd.Dataframe) Input matrix.
-        :param algorithm: (str) Valid MST algorithm types include 'kruskal', 'prim', or 'boruvka'.
-            By default, MST algorithm uses Kruskal's.
-        """
-        valid_algo_types = ['kruskal', 'prim', 'boruvka']
-        # If an invalid mst algorithm is used, raise an Error to notify the user
-        if algorithm not in valid_algo_types:
-            msg = "{} is not a valid MST algorithm type. " \
-                  "Please select one shown in the docstring.".format(algorithm)
-            raise ValueError(msg)
-        return nx.minimum_spanning_tree(nx.Graph(matrix), algorithm=algorithm)

@@ -128,7 +128,7 @@ class TestCodependence(unittest.TestCase):
         corr_matrix = get_dependence_matrix(self.X_matrix, dependence_method='distance_correlation')
         rho_matrix = get_dependence_matrix(self.X_matrix, dependence_method='spearmans_rho')
         gpr_matrix = get_dependence_matrix(self.X_matrix, dependence_method='gpr_distance', theta=0.5)
-        gnpr_matrix = get_dependence_matrix(self.X_matrix, dependence_method='gnpr_distance', theta=0.5, bandwidth=0.02)
+        gnpr_matrix = get_dependence_matrix(self.X_matrix, dependence_method='gnpr_distance', theta=0.5)
         ot_matrix_comon = get_dependence_matrix(self.X_matrix, dependence_method='optimal_transport',
                                                 target_dependence='comonotonicity')
         ot_matrix_counter = get_dependence_matrix(self.X_matrix, dependence_method='optimal_transport',
@@ -215,8 +215,8 @@ class TestCodependence(unittest.TestCase):
         gnpr1_xy1 = gnpr_distance(self.x, self.y_1, theta=1)
         gnpr1_xy2 = gnpr_distance(self.x, self.y_2, theta=1)
 
-        self.assertAlmostEqual(gnpr0_xy1, 0.58834643, delta=1e-7)
-        self.assertAlmostEqual(gnpr0_xy2, 0.57115983, delta=1e-7)
+        self.assertAlmostEqual(gnpr0_xy1, 0.16189733, delta=1e-7)
+        self.assertAlmostEqual(gnpr0_xy2, 0.00861021, delta=1e-7)
 
         self.assertAlmostEqual(gnpr1_xy1, 0.0032625, delta=1e-7)
         self.assertAlmostEqual(gnpr1_xy2, 0.0023459, delta=1e-7)

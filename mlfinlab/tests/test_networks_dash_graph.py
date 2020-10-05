@@ -14,12 +14,11 @@ import pandas as pd
 from jupyter_dash import JupyterDash
 
 from mlfinlab.networks.dash_graph import DashGraph
-from mlfinlab.networks.graph import MST
+from mlfinlab.networks.mst import MST
 
 
 class TestDashGraph(unittest.TestCase):
-    # pylint: disable=protected-access
-    # pylint: disable=too-many-public-methods
+    # pylint: disable=protected-access, too-many-public-methods
     """
     Tests for the different DashGraph object functionalities
     """
@@ -189,12 +188,12 @@ class TestDashGraph(unittest.TestCase):
         layout = self.dash_graph._generate_layout()
         self.assertIsInstance(layout, dbc.Container)
 
-    def test_generate_cyto_graph(self):
+    def test_set_cyto_graph(self):
         """
         Tests generate_layout returns Dash Bootstrap Container
         """
-        cyto_graph = self.dash_graph._generate_cyto_graph()
-        self.assertIsInstance(cyto_graph, cyto.Cytoscape)
+        self.dash_graph._set_cyto_graph()
+        self.assertIsInstance(self.dash_graph.cyto_graph, cyto.Cytoscape)
 
     def test_update_cytoscape_layout(self):
         """

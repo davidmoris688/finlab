@@ -33,11 +33,13 @@ class DashGraph:
         :param app_display: (str) 'default' by default and 'jupyter notebook' for running Dash inside Jupyter Notebook.
         :param input_graph: (Graph) Graph class from graph.py.
         """
+        self.graph = None
         # Dash app styling with Bootstrap
         if app_display == 'jupyter notebook':
             self.app = JupyterDash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
         else:
             self.app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
         # Graph class object
         self.graph = input_graph
         # The dictionary of the nodes coordinates
@@ -50,15 +52,17 @@ class DashGraph:
             colour_map = self.graph.get_node_colours()
             self._assign_colours_to_groups(list(colour_map.keys()))
 
-        # Create elements for Dash graph
         self.weights = []
         self.elements = []
         self._update_elements()
 
         # Load the different graph layouts
         cyto.load_extra_layouts()
-
+        self.layout_options = ['cose-bilkent', 'cola', 'spread']
+        self.statistics = ['graph_summary', 'average_degree_connectivity', 'average_neighbor_degree',
+                           'betweenness_centrality']
         # Load default stylesheet
+        self.stylesheet = None
         self.stylesheet = self._get_default_stylesheet()
 
         # Append stylesheet for colour and size
@@ -66,6 +70,8 @@ class DashGraph:
         self._style_colours()
         if self.graph.get_node_sizes():
             self._assign_sizes()
+
+        self.cyto_graph = None
 
         # Callback functions to hook frontend elements to functions
         self.app.callback(Output('cytoscape', 'layout'),
@@ -75,16 +81,14 @@ class DashGraph:
         self.app.callback(Output('cytoscape', 'elements'),
                           [Input('rounding_decimals', 'value')])(self._round_decimals)
 
-    def _generate_cyto_graph(self):
+    def _set_cyto_graph(self):
         """
-        Generates the cytoscape graph element.
-
-        :return: (Cytoscape) Returns the Cytoscpae graph object.
+        Sets the cytoscape graph elements.
         """
-        cyto_graph = cyto.Cytoscape(
-            id='cytoscape',
+        self.cyto_graph = cyto.Cytoscape(
+            id="cytoscape",
             layout={
-                'name': 'cose-bilkent'
+                'name': self.layout_options[0]
             },
             style={
                 'width': '100%',
@@ -94,7 +98,54 @@ class DashGraph:
             elements=self.elements,
             stylesheet=self.stylesheet
         )
-        return cyto_graph
+
+    def _get_node_group(self, node_name):
+        """
+        Returns the industry or sector name for a given node name.
+
+        :param node_name: (str) Name of a given node in the graph.
+        :return: (str) Name of industry that the node is in or "default" for nodes which haven't been assigned a group.
+        """
+        node_colour_map = self.graph.get_node_colours()
+        for key, val in node_colour_map.items():
+            if node_name in val:
+                return key
+        return "default"
+
+    def _get_node_size(self, index):
+        """
+        Returns the node size for given node index if the node sizes have been set.
+
+        :param index: (int) The index of the node.
+        :return: (float) Returns size of node set, 0 if it has not been set.
+        """
+        if self.graph.get_node_sizes():
+            return self.graph.get_node_sizes()[index]
+        return 0
+
+    def _update_elements(self, dps=4):
+        """
+        Updates the elements needed for the Dash Cytoscape Graph object.
+
+        :param dps: (int) Decimal places to round the edge values.
+        """
+
+        i = 0
+        self.weights = []
+        self.elements = []
+
+        for node in self.pos:
+            self.elements.append({
+                'data': {'id': node, 'label': node, 'colour_group': self._get_node_group(node),
+                         'size': self._get_node_size(i)
+                         },
+                'selectable': 'true',
+            })
+            i += 1
+
+        for node1, node2, weight in self.graph.get_graph().edges(data=True):
+            self.weights.append(round(weight['weight'], dps))
+            self.elements.append({'data': {'source': node1, 'target': node2, 'weight': round(weight['weight'], dps)}})
 
     def _generate_layout(self):
         """
@@ -102,14 +153,17 @@ class DashGraph:
 
         :return: (dbc.Container) Returns Dash Bootstrap Component Container containing the layout of UI.
         """
+        graph_type = type(self.graph).__name__
+
+        self._set_cyto_graph()
 
         layout_input = [
-            html.H1("Minimum Spanning Tree from {} matrix".format(self.graph.get_matrix_type())),
+            html.H1("{} from {} matrix".format(graph_type, self.graph.get_matrix_type())),
             html.Hr(),
             dbc.Row(
                 [
-                    dbc.Col(DashGraph._get_default_controls(), md=4),
-                    dbc.Col(self._generate_cyto_graph(), md=8),
+                    dbc.Col(self._get_default_controls(), md=4),
+                    dbc.Col(self.cyto_graph, md=8),
                 ],
                 align="center",
             )
@@ -164,29 +218,6 @@ class DashGraph:
                 }
                 self.stylesheet.append(new_colour)
 
-    def _get_node_group(self, node_name):
-        """
-        Returns the industry or sector name for a given node name.
-
-        :param node_name: (str) Name of a given node in the graph.
-        :return: (str) Name of industry that the node is in or "default" for nodes which haven't been assigned a group.
-        """
-        node_colour_map = self.graph.get_node_colours()
-        for key, val in node_colour_map.items():
-            if node_name in val:
-                return key
-        return "default"
-
-    def _get_node_size(self, index):
-        """
-        Returns the node size for given node index if the node sizes have been set.
-
-        :return: (float) Returns size of node set, 0 if it has not been set.
-        """
-        if self.graph.get_node_sizes():
-            return self.graph.get_node_sizes()[index]
-        return 0
-
     def _assign_sizes(self):
         """
         Assigns the node sizing by appending to the stylesheet.
@@ -203,33 +234,9 @@ class DashGraph:
         }
         self.stylesheet.append(new_sizes)
 
-    def _update_elements(self, dps=4):
-        """
-        Updates the elements needed for the Dash Cytoscape Graph object.
-
-        :param dps: (int) Decimal places to round the edge values.
-        """
-        self.elements = []
-        self.weights = []
-        i = 0
-        for node in self.pos:
-            self.elements.append({
-                'data': {'id': node, 'label': node, 'colour_group': self._get_node_group(node),
-                         'size': self._get_node_size(i)},
-                'position': {
-                    'x': self.pos[node][0] * 256,
-                    'y': self.pos[node][1] * 256
-                }
-            })
-            i += 1
-
-        for node1, node2, weight in self.graph.get_graph().edges(data=True):
-            self.weights.append(round(weight['weight'], dps))
-            self.elements.append({'data': {'source': node1, 'target': node2, 'weight': round(weight['weight'], dps)}})
-
     def get_server(self):
         """
-        Starts up a small Flask server.
+        Returns a small Flask server.
 
         :return: (Dash) Returns the Dash app object, which can be run using run_server.
             Returns a Jupyter Dash object if DashGraph has been initialised for Jupyter Notebook.
@@ -260,6 +267,8 @@ class DashGraph:
             "average_neighbor_degree": nx.average_neighbor_degree(self.graph.get_graph()),
             "betweenness_centrality": nx.betweenness_centrality(self.graph.get_graph()),
         }
+        if type(self.graph).__name__ == "PMFG":
+            switcher["disparity_measure"] = self.graph.get_disparity_measure()
         return json.dumps(switcher.get(stat_name), indent=2)
 
     def get_graph_summary(self):
@@ -289,8 +298,10 @@ class DashGraph:
         :param dps: (int) Number of decimals places to round to.
         :return: (List) Returns the list of elements used to define graph.
         """
+
         if dps:
             self._update_elements(dps)
+
         return self.elements
 
     def _get_default_stylesheet(self):
@@ -306,7 +317,7 @@ class DashGraph:
                     'style': {
                         'label': 'data(label)',
                         'text-valign': 'center',
-                        'background-color': '#00BFFF',
+                        'background-color': '#65afff',
                         'color': '',
                         'font-family': 'sans-serif',
                         'font-size': '12',
@@ -319,21 +330,19 @@ class DashGraph:
                     "selector": 'edge',
                     "style": {
                         'label': 'data(weight)',
-                        "line-color": "#BDB76B",
+                        "line-color": "#a3d5ff",
                         'font-size': '8',
                     }
                 },
                 {
                     "selector": '[weight => 0]',
                     "style": {
-                        "line-color": "#ADD8E6",
                         "width": "mapData(weight, 0, {}, 1, 8)".format(max(self.weights)),
                     }
                 },
                 {
                     "selector": '[weight < 0]',
                     "style": {
-                        'line-color': '#FAEBD7',
                         "width": "mapData(weight, 0, {}, 1, 8)".format(min(self.weights)),
                     }
                 }
@@ -375,8 +384,7 @@ class DashGraph:
         )
         return toast
 
-    @staticmethod
-    def _get_default_controls():
+    def _get_default_controls(self):
         """
         Returns the default controls for initialisation.
 
@@ -391,9 +399,9 @@ class DashGraph:
                             dcc.Dropdown(
                                 id="dropdown-layout",
                                 options=[
-                                    {"label": col, "value": col} for col in ['cose-bilkent', 'cola', 'spread']
+                                    {"label": col, "value": col} for col in self.layout_options
                                 ],
-                                value="cose-bilkent",
+                                value=self.layout_options[0],
                                 clearable=False,
                             ),
                         ]
@@ -404,11 +412,7 @@ class DashGraph:
                             dcc.Dropdown(
                                 id="dropdown-stat",
                                 options=[
-                                    {"label": col, "value": col} for col in
-                                    ['graph_summary',
-                                     'average_degree_connectivity', 'average_neighbor_degree',
-                                     'betweenness_centrality'
-                                     ]
+                                    {"label": col, "value": col} for col in self.statistics
                                 ],
                                 value="graph_summary",
                                 clearable=False,
@@ -433,3 +437,70 @@ class DashGraph:
             body=True,
         )
         return controls
+
+
+class PMFGDash(DashGraph):
+    """
+    PMFGDash class, a child of DashGraph, is the Dash interface class to display the PMFG.
+    """
+
+    def __init__(self, input_graph, app_display='default'):
+        """
+        Initialise the PMFGDash class but override the layout options.
+        """
+        super().__init__(input_graph, app_display)
+        self.layout_options = ['preset']
+        self.statistics.append('disparity_measure')
+
+    def _update_elements(self, dps=4):
+        """
+        Overrides the parent DashGraph class method _update_elements, to add styling for the MST edges.
+        Updates the elements needed for the Dash Cytoscape Graph object.
+
+        :param dps: (int) Decimal places to round the edge values. By default, this will round to 4 d.p's.
+        """
+
+        i = 0
+        self.weights = []
+        self.elements = []
+
+        for node in self.pos:
+            self.elements.append({
+                'data': {'id': node, 'label': node, 'colour_group': self._get_node_group(node),
+                         'size': self._get_node_size(i)
+                         },
+                'position': {'x': 25 * len(self.pos) * self.pos[node][0],
+                             'y': 25 * len(self.pos) * self.pos[node][1]},
+                'selectable': 'true',
+            })
+            i += 1
+
+        for node1, node2, weight in self.graph.get_graph().edges(data=True):
+            self.weights.append(round(weight['weight'], dps))
+
+            # If the edge is a part of the MST, add edge to the class MST.
+            if self.graph.edge_in_mst(node1, node2):
+                self.elements.append(
+                    {'data': {'source': node1, 'target': node2, 'weight': round(weight['weight'], dps)},
+                     'classes': 'mst'})
+            else:
+                self.elements.append(
+                    {'data': {'source': node1, 'target': node2, 'weight': round(weight['weight'], dps)}})
+
+    def _get_default_stylesheet(self):
+        """
+        Gets the default stylesheet and adds the MST styling.
+
+        :return: (List) Returns the stylesheet to be added to the graph.
+        """
+        stylesheet = super()._get_default_stylesheet()
+
+        mst_styling = {
+            "selector": '.mst',
+            "style": {
+                "line-color": "#8cba80",
+            }
+        }
+        stylesheet.append(mst_styling)
+
+        return stylesheet

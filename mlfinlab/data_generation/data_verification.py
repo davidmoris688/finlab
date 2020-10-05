@@ -11,7 +11,30 @@ import matplotlib.pyplot as plt
 from scipy.cluster import hierarchy
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
+from mlfinlab.codependence import get_dependence_matrix
+from mlfinlab.clustering.hierarchical_clustering import optimal_hierarchical_cluster
 
+
+def plot_time_series_dependencies(time_series, dependence_method="gnpr_distance", **kwargs):
+    """
+    Plots the dependence matrix of a time series returns.
+
+    Used to verify a time series' underlying distributions via the GNPR distance method.
+    ``**kwargs`` are used to pass arguments to the `get_dependence_matrix` function used here.
+
+    :param time_series: (pd.DataFrame) Dataframe containing time series.
+    :param dependence_method: (str) Distance method to use by `get_dependence_matrix`
+    :return: (plt.Axes) Figure's axes.
+    """
+    dep_matrix = get_dependence_matrix(time_series.diff().dropna(), dependence_method=dependence_method, **kwargs)
+
+    # Plot dependence matrix
+    fig, axis = plt.subplots(1, 1, figsize=(6, 5))
+    plot = axis.pcolormesh(dep_matrix, cmap="viridis")
+    fig.colorbar(plot, ax=axis)
+    axis.set_title("Dependence Matrix using {} Metric".format(dependence_method))
+
+    return axis
 
 def _compute_eigenvalues(mats):
     """
@@ -59,7 +82,7 @@ def _compute_pf_vec(mats):
         eigenvals, eigenvecs = np.linalg.eig(mat)
         pf_vector = eigenvecs[:, np.argmax(eigenvals)]
         if pf_vector[0] < 0:
-            pf_vector -= pf_vector
+            pf_vector = -pf_vector
         pf_vectors.append(pf_vector)
 
     return np.array(pf_vectors)
@@ -130,8 +153,7 @@ def plot_pairwise_dist(emp_mats, gen_mats, n_hist=100):
     :return: (plt.Axes) Figure's axes.
     """
     tri_rows, tri_cols = np.triu_indices(emp_mats.shape[1], k=1)
-    plt.figure(figsize=(8, 4))
-    _, axes = plt.subplots(1, 1)
+    _, axes = plt.subplots(1, 1, figsize=(8, 4))
     axes.hist(
         gen_mats[:, tri_rows, tri_cols].flatten(),
         bins=n_hist,
@@ -184,8 +206,7 @@ def plot_eigenvalues(emp_mats, gen_mats, n_hist=100):
     mean_emp_eigenvals = np.mean(_compute_eigenvalues(emp_mats), axis=0)
     mean_gen_eigenvals = np.mean(_compute_eigenvalues(gen_mats), axis=0)
 
-    plt.figure(figsize=(8, 4))
-    _, axes = plt.subplots(1, 1)
+    _, axes = plt.subplots(1, 1, figsize=(8, 4))
     axes.hist(
         mean_gen_eigenvals, bins=n_hist, color="b", density=True, alpha=0.5, label="Synthetic"
     )
@@ -225,8 +246,7 @@ def plot_eigenvectors(emp_mats, gen_mats, n_hist=100):
     mean_emp_pf = np.mean(_compute_pf_vec(emp_mats), axis=0)
     mean_gen_pf = np.mean(_compute_pf_vec(gen_mats), axis=0)
 
-    plt.figure(figsize=(8, 4))
-    _, axes = plt.subplots(1, 1)
+    _, axes = plt.subplots(1, 1, figsize=(8, 4))
     axes.hist(mean_gen_pf, bins=n_hist, density=True, color="b", alpha=0.5, label="Synthetic")
     axes.hist(mean_emp_pf, bins=n_hist, density=True, color="r", alpha=0.5, label="Empirical")
     axes.axvline(x=0, color="k", linestyle="dashed", linewidth=2)
@@ -241,7 +261,7 @@ def plot_eigenvectors(emp_mats, gen_mats, n_hist=100):
     return axes
 
 
-def plot_heirarchical_structure(emp_mats, gen_mats):
+def plot_hierarchical_structure(emp_mats, gen_mats):
     """
     Plots the following stylized facts for comparison between empirical and generated
     correlation matrices:
@@ -271,8 +291,7 @@ def plot_heirarchical_structure(emp_mats, gen_mats):
     optimal_ordering = hierarchy.leaves_list(optimal_leaves)
     ordered_corr = corr_mat[optimal_ordering, :][:, optimal_ordering]
 
-    plt.figure(figsize=(5, 7))
-    fig, (axes1, axes2) = plt.subplots(2, 1)
+    fig, (axes1, axes2) = plt.subplots(2, 1, figsize=(5, 7))
     plot_1 = axes1.pcolormesh(ordered_corr, cmap="viridis")
     fig.colorbar(plot_1, ax=axes1)
     axes1.set_title("Empirical Matrix Hierarchical Structure")
@@ -308,8 +327,7 @@ def plot_mst_degree_count(emp_mats, gen_mats):
     mean_empirical_counts = np.mean(_compute_degree_counts(emp_mats), axis=0)
     mean_empirical_counts = pd.Series(mean_empirical_counts).replace(0, np.nan)
 
-    plt.figure(figsize=(8, 4))
-    _, axes = plt.subplots(1, 1)
+    _, axes = plt.subplots(1, 1, figsize=(8, 4))
     axes.scatter(mean_corrgan_counts.index, mean_corrgan_counts, label="Synthetic")
     axes.scatter(mean_empirical_counts.index, mean_empirical_counts, label="Empirical")
     axes.legend()
@@ -359,9 +377,29 @@ def plot_stylized_facts(emp_mats, gen_mats, n_hist=100):
     plot_eigenvectors(emp_mats, gen_mats, n_hist)
 
     # Plot hierarchical structure of correlations.
-    plot_heirarchical_structure(emp_mats, gen_mats)
+    plot_hierarchical_structure(emp_mats, gen_mats)
 
     # Plot MST degree counts.
     plot_mst_degree_count(emp_mats, gen_mats)
 
     plt.show()
+
+
+def plot_optimal_hierarchical_cluster(mat, method="ward"):
+    """
+    Calculates and plots the optimal clustering of a correlation matrix.
+
+    It uses the `optimal_hierarchical_cluster` function in the clustering module to calculate
+    the optimal hierarchy cluster matrix.
+
+    :param mat: (np.array/pd.DataFrame) Correlation matrix.
+    :param method: (str) Method to calculate the hierarchy clusters. Can take the values
+        ["single", "complete", "average", "weighted", "centroid", "median", "ward"].
+    :return: (plt.Axes) Figure's axes.
+    """
+    ordered_corr = optimal_hierarchical_cluster(mat, method)
+    fig, axes = plt.subplots(1, 1, figsize=(6, 4))
+    plot_1 = axes.pcolormesh(ordered_corr, cmap="viridis")
+    fig.colorbar(plot_1, ax=axes)
+
+    return axes

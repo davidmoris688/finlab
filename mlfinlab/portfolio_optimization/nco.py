@@ -1,4 +1,5 @@
 # pylint: disable=missing-module-docstring
+from math import ceil
 import numpy as np
 import pandas as pd
 from sklearn.covariance import LedoitWolf
@@ -258,10 +259,10 @@ class NCO:
 
         # If maximum number of clusters undefined, it's equal to half the number of elements
         if max_num_clusters is None:
-            max_num_clusters = round(corr.shape[0] / 2)
+            max_num_clusters = ceil(corr.shape[0] / 2)
 
         # Iterating over the allowed iteration times for k-means
-        for init in range(1, n_init):
+        for init in range(1, n_init+1):
             # Iterating through every number of clusters
             for num_clusters in range(2, max_num_clusters + 1):
                 # Computing k-means clustering

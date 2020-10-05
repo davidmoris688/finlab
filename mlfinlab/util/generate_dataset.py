@@ -1,7 +1,9 @@
-'''
+
+"""
 This module generates  synthetic classification dataset of INFORMED, REDUNDANT, and NOISE explanatory
 variables based on the book Machine Learning for Asset Manager (code snippet 6.1)
-'''
+"""
+
 import numpy as np
 import pandas as pd
 from sklearn.datasets import make_classification

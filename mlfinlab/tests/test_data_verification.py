@@ -10,13 +10,16 @@ import os
 import numpy as np
 import matplotlib
 import mlfinlab.data_generation.data_verification as data_verification
+from mlfinlab.data_generation.data_verification import plot_time_series_dependencies
+from mlfinlab.data_generation.correlated_random_walks import generate_cluster_time_series
 from mlfinlab.data_generation.data_verification import (
     plot_pairwise_dist,
     plot_eigenvalues,
     plot_eigenvectors,
-    plot_heirarchical_structure,
+    plot_hierarchical_structure,
     plot_mst_degree_count,
     plot_stylized_facts,
+    plot_optimal_hierarchical_cluster
 )
 
 
@@ -27,12 +30,31 @@ class TestDataVerificationMethods(unittest.TestCase):
 
     def setUp(self):
         """
-        Sets the file path for the corrgan generator model.
+        Sets random number generator seeds and
+        file path for the corrgan generator model.
         """
 
+        np.random.seed(2814)
         project_path = os.path.dirname(__file__)
         path = project_path + "/test_data"
         self.generator_path = path
+
+    def test_correlated_random_walks_plot(self):
+        """
+        Tests that correlated random walks dependence plots are plotted normally.
+        """
+
+        # Needed to avoid actual image plotting.
+        matplotlib.use("Template")
+
+        n_series = 50
+        t_samples = 1200
+        k_clusters = 1
+        d_clusters = 4
+        data_series = generate_cluster_time_series(n_series, t_samples, k_clusters, d_clusters)
+        self.assertFalse(plot_time_series_dependencies(data_series) is None)
+
+        matplotlib.pyplot.show()
 
     def test_compute_eigenvalues(self):
         # pylint: disable=protected-access
@@ -85,16 +107,19 @@ class TestDataVerificationMethods(unittest.TestCase):
         matplotlib.use("Template")
 
         # Some dummy data for testing purposes only.
-        gen_dummy = np.array(
-            [[[1, 0.45518, 0.439411], [0.45518, 1, 0.703234], [0.439411, 0.703234, 1]]]
-        )
+        gen_dummy = np.array([[[1, 0.45518, 0.439411],
+                               [0.45518, 1, 0.703234],
+                               [0.439411, 0.703234, 1]]])
+
         emp_dummy = np.array([[[1, 0.51727604, 0.64076545],
                                [0.51727604, 1, 0.67529106],
                                [0.64076545, 0.67529106, 1]]])
 
+        # Need to close plots mid way in the test to avoid too many plots warning.
         self.assertFalse(plot_pairwise_dist(emp_dummy, gen_dummy) is None)
         self.assertFalse(plot_eigenvalues(emp_dummy, gen_dummy) is None)
         self.assertFalse(plot_eigenvectors(emp_dummy, gen_dummy) is None)
-        self.assertFalse(plot_heirarchical_structure(emp_dummy, gen_dummy) is None)
+        self.assertFalse(plot_hierarchical_structure(emp_dummy, gen_dummy) is None)
         self.assertFalse(plot_mst_degree_count(emp_dummy, gen_dummy) is None)
+        self.assertFalse(plot_optimal_hierarchical_cluster(emp_dummy[0]) is None)
         plot_stylized_facts(emp_dummy, gen_dummy)

@@ -24,18 +24,24 @@ class TestOrnsteinUhlenbeck(unittest.TestCase):
         project_path = os.path.dirname(__file__)
         self.path = project_path + '/test_data/gld_gdx_data.csv'
         data = pd.read_csv(self.path)
+        data = data.set_index('Date')
+
+        self.dataframe = data[['GLD', 'GDX']]
 
         # Formatting the input data into np.array of asset prices
         # Time series of two prices
-        self.assetprices = np.array([data["GLD"], data["GDX"]])
+        self.assetprices = np.array(self.dataframe)
 
         # Data with incorrect dimensions
         self.assetprices_incorrect = np.zeros((4, 3))
 
+        # Create a helper function to construct a portfolio
+        asset_helper = self.assetprices.transpose()
+
         # Constructing portfolio price identical to self.assetprices
         # optimal portfolio
-        self.portfolioprices = ((1 /self.assetprices[0][0]) * self.assetprices[0][:]
-                                - (0.20281 / self.assetprices[1][0]) * self.assetprices[1][:])
+        self.portfolioprices = ((1 /asset_helper[0][0]) * asset_helper[0][:]
+                                - (0.20281 / asset_helper[1][0]) * asset_helper[1][:])
 
         # List with testing values for data frequency
         self.test_data_frequency = ["D", "M", "Y", True]
@@ -47,9 +53,25 @@ class TestOrnsteinUhlenbeck(unittest.TestCase):
         # Creating an object of class
         test = OrnsteinUhlenbeck()
 
-        # Allocating discount rates and transaction costs as tuples,
-        # defined stop-loss level, data frequency - daily
-        test.fit(self.portfolioprices, self.test_data_frequency[0],
+        # Allocating data as pd.DataFrame, discount rates and transaction costs as tuples,
+        # defined stop-loss level, data frequency - daily, training interval not defined
+        test.fit(self.dataframe, self.test_data_frequency[0],
+                 discount_rate=[0.05, 0.05], transaction_cost=[0.02, 0.02],
+                 start="8/24/2015", end="12/8/2015",
+                 stop_loss=0.2)
+
+        # Retraining the model without using the additionally provided data
+        test.fit_to_assets(start="8/24/2015", end="12/8/2015")
+
+        # Testing allocated parameters
+        self.assertAlmostEqual(test.delta_t, 0.00396, delta=1e-4)
+        np.testing.assert_array_equal(test.r, [0.05, 0.05])
+        np.testing.assert_array_equal(test.c, [0.02, 0.02])
+        self.assertEqual(test.L, 0.2)
+
+        # Allocating data as pd.DataFrame, discount rates and transaction costs as tuples,
+        # defined stop-loss level, data frequency - daily, training interval is defined
+        test.fit(self.dataframe, self.test_data_frequency[0],
                  discount_rate=[0.05, 0.05], transaction_cost=[0.02, 0.02],
                  stop_loss=0.2)
 
@@ -59,7 +81,22 @@ class TestOrnsteinUhlenbeck(unittest.TestCase):
         np.testing.assert_array_equal(test.c, [0.02, 0.02])
         self.assertEqual(test.L, 0.2)
 
-        # Allocating discount rates and transaction costs as single values,
+        # Allocating data as np.array, discount rates and transaction costs as tuples,
+        # defined stop-loss level, data frequency - daily
+        test.fit(self.portfolioprices, self.test_data_frequency[0],
+                 discount_rate=[0.05, 0.05], transaction_cost=[0.02, 0.02],
+                 stop_loss=0.2)
+
+        # Retraining the model without using the additionally provided data
+        test.fit_to_portfolio()
+
+        # Testing allocated parameters
+        self.assertAlmostEqual(test.delta_t, 0.00396, delta=1e-4)
+        np.testing.assert_array_equal(test.r, [0.05, 0.05])
+        np.testing.assert_array_equal(test.c, [0.02, 0.02])
+        self.assertEqual(test.L, 0.2)
+
+        # Allocating data as np.array, discount rates and transaction costs as single values,
         # defined stop-loss level, data frequency - monthly
         test.fit(self.assetprices, self.test_data_frequency[1],
                  discount_rate=0.05, transaction_cost=0.02, stop_loss=0.2)
@@ -70,7 +107,7 @@ class TestOrnsteinUhlenbeck(unittest.TestCase):
         np.testing.assert_array_equal(test.c, [0.02, 0.02])
         self.assertEqual(test.L, 0.2)
 
-        # Allocating discount rates and transaction costs as single values,
+        # Allocating data as np.array, discount rates and transaction costs as single values,
         # stop-loss level not defined, data frequency - monthly
         test.fit(self.assetprices, self.test_data_frequency[2],
                  discount_rate=0.05, transaction_cost=0.02)
@@ -121,28 +158,41 @@ class TestOrnsteinUhlenbeck(unittest.TestCase):
         # Creating two objects of OUM class to compare
         portfolio = OrnsteinUhlenbeck()
         assets = OrnsteinUhlenbeck()
+        dataframe = OrnsteinUhlenbeck()
 
-        # Allocate data as prices of two assets
+        # Allocate data as prices of two assets in a form of pd.DataFrame
+        dataframe.fit(self.dataframe, self.test_data_frequency[0],
+                      discount_rate=[0.05, 0.05],
+                      transaction_cost=[0.02, 0.02], stop_loss=0.02)
+
+        # Allocate data as prices of two assets from np.array
         assets.fit(self.assetprices, self.test_data_frequency[0],
-                   discount_rate=0.05, transaction_cost=0.02, stop_loss=0.2)
+                   discount_rate=[0.05, 0.05],
+                   transaction_cost=[0.02, 0.02], stop_loss=0.02)
 
-        # Allocate data using a portfolio identical to self.assetprices optimal portfolio
+        # Allocate data using a portfolio identical to self.assetprices optimal portfolio from np.array
         portfolio.fit(self.portfolioprices, self.test_data_frequency[0],
                       discount_rate=[0.05, 0.05], transaction_cost=[0.02, 0.02],
                       stop_loss=0.2)
 
         # Optimal parameters calculated for different input options of the same data and then
         # tested on template data
-        portfolio_parameters = [portfolio.theta, portfolio.mu, portfolio.sigma_square]
+        portfolio_parameters = [portfolio.theta, portfolio.mu, portfolio.sigma_square, portfolio.half_life()]
 
-        assets_parameters = [assets.theta, assets.mu, assets.sigma_square, assets.B_value]
+        assets_parameters = [assets.theta, assets.mu, assets.sigma_square, assets.half_life(), assets.B_value]
 
-        expected_output = [0.72650, 6.0929, 0.00696, 0.20281]
+        dataframe_parameters = [dataframe.theta, dataframe.mu, dataframe.sigma_square, dataframe.half_life(),
+                                dataframe.B_value]
 
-        # Testing optimal parameters fit to the portfolio constructed from asset prices
+        expected_output = [0.72650, 6.0929, 0.00696, 0.114, 0.20281]
+
+        # Testing optimal parameters fit to the portfolio constructed from asset prices from pd.DataFrame
+        np.testing.assert_almost_equal(dataframe_parameters, expected_output, decimal=3)
+
+        # Testing optimal parameters fit to the portfolio constructed from asset prices from np.array
         np.testing.assert_almost_equal(assets_parameters, expected_output, decimal=3)
 
-        # Testing optimal parameters fit to the given portfolio
+        # Testing optimal parameters fit to the given portfolio from np.array
         np.testing.assert_almost_equal(portfolio_parameters, expected_output[:-1], decimal=3)
 
     def test_optimal_levels(self):
@@ -185,6 +235,8 @@ class TestOrnsteinUhlenbeck(unittest.TestCase):
         np.testing.assert_almost_equal(optimal_levels_portfolio, expected_optimal_levels_portfolio, decimal=4)
         np.testing.assert_almost_equal(optimal_levels_assets, expected_optimal_levels_assets, decimal=4)
 
+        # Testing the fitness check function
+        assets.check_fit()
         # Testing the description function
         assets.description()
         # Testing the description function without stop-loss value
@@ -222,9 +274,14 @@ class TestOrnsteinUhlenbeck(unittest.TestCase):
         np.testing.assert_almost_equal(optimal_value_portfolio, expected_optimal_values, decimal=5)
         np.testing.assert_almost_equal(optimal_value_assets, expected_optimal_values, decimal=5)
 
+        # Tests OU process generation
+        assets.ou_model_simulation(100, 0.6, 12, 0.1, 0.00396)
+
         # Tests plotting method
+        assets.plot_levels(self.dataframe, stop_loss=True)
         assets.plot_levels(self.assetprices, stop_loss=True)
         assets.plot_levels(self.portfolioprices)
+
 
     def test_functions_exceptions(self):
         """
@@ -253,6 +310,10 @@ class TestOrnsteinUhlenbeck(unittest.TestCase):
                            discount_rate=0.05, transaction_cost=0.02,
                            stop_loss=0.7)
 
-        # Testing if exceptions are raised when there is incorrect stop-loss level regarding the data
+        # Testing if exception is raised when there is incorrect stop-loss level regarding the data
         with self.assertRaises(Exception):
             test_condition.optimal_entry_interval_stop_loss()
+
+        # Testing if exception is raised when the data for plotting has incorrect dimensions
+        with self.assertRaises(Exception):
+            test.plot_levels(self.assetprices_incorrect)

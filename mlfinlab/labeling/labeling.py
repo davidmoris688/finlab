@@ -141,7 +141,7 @@ def get_events(close, t_events, pt_sl, target, min_ret, num_threads, vertical_ba
     # 3) Form events object, apply stop loss on vertical barrier
     if side_prediction is None:
         side_ = pd.Series(1.0, index=target.index)
-        pt_sl_ = [pt_sl[0], pt_sl[0]]
+        pt_sl_ = [pt_sl[0], pt_sl[1]]
     else:
         side_ = side_prediction.reindex(target.index)  # Subset side_prediction on target index.
         pt_sl_ = pt_sl[:2]
